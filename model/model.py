@@ -50,9 +50,9 @@ class Model:
         """
         self.__sequenza_ottima = []
         self.__costo_ottimo = -1
-        prezzi_settimana = self.__get_prezzi_prima_settimana_mese(mese)
+        self.__get_prezzi_prima_settimana_mese(mese)
 
-        print(self.__ricorsione([], 1, None, 0, prezzi_settimana))
+        self.__sequenza_ottima, self.__costo_ottimo = self.__ricorsione([], 1, None, 0, self.__get_prezzi_prima_settimana_mese(mese))
 
         # Traduci gli ID in nomi
         id_to_nome = {distributore.id: distributore.nome for distributore in self._distributori}
@@ -67,28 +67,29 @@ class Model:
             altro_distributore = 1
 
         if len(sequenza_parziale) == 7:
-            return sequenza_parziale
-        else:
-            if len(sequenza_parziale) == 0:
-                if prezzi_settimana[1][0]<=prezzi_settimana[2][0]:
-                    sequenza_parziale.append(1)
-                    costo_corrente += prezzi_settimana[1][0]
-                    ultimo_distributore = 1
-                else:
-                    sequenza_parziale.append(2)
-                    costo_corrente += prezzi_settimana[2][0]
-                    ultimo_distributore = 2
-                giorno=0
-
+            return sequenza_parziale, costo_corrente
+        elif len(sequenza_parziale) == 0:
+            if prezzi_settimana[1][0] <= prezzi_settimana[2][0]:
+                sequenza_parziale.append(1)
+                costo_corrente += (prezzi_settimana[1][0]*100)
+                ultimo_distributore = 1
             else:
-                if prezzi_settimana[ultimo_distributore][giorno] <= prezzi_settimana[altro_distributore][giorno] + 5:
-                    sequenza_parziale.append(ultimo_distributore)
-                    costo_corrente += prezzi_settimana[ultimo_distributore][giorno]
-                else:
-                    ultimo_distributore = altro_distributore
-                    sequenza_parziale.append(ultimo_distributore)
-                    costo_corrente += prezzi_settimana[ultimo_distributore][giorno]
-
+                sequenza_parziale.append(2)
+                costo_corrente += (prezzi_settimana[2][0]*100)
+                ultimo_distributore = 2
+            giorno = 0
+            #print(sequenza_parziale)
+            return self.__ricorsione(sequenza_parziale, giorno + 1, ultimo_distributore, costo_corrente,
+                                     prezzi_settimana)
+        else:
+            '''print(f"DEBUG PREZZO SETTIMANA: {prezzi_settimana}")
+            print(f"DEBUG PREZZO ULTIMO DISTRIBUTORE: {ultimo_distributore}, {prezzi_settimana[ultimo_distributore][giorno]*100}")
+            print(f"DEBUG PREZZO ALTRO DISTRIBUTORE: {altro_distributore}, {prezzi_settimana[ultimo_distributore][giorno] * 100 +5}")'''
+            if (prezzi_settimana[ultimo_distributore][giorno]*100) > (prezzi_settimana[altro_distributore][giorno]*100 + 5):
+                ultimo_distributore = altro_distributore
+                costo_corrente += 5
+            sequenza_parziale.append(ultimo_distributore)
+            costo_corrente += (prezzi_settimana[ultimo_distributore][giorno]*100)
             return self.__ricorsione(sequenza_parziale, giorno + 1, ultimo_distributore, costo_corrente,
                                          prezzi_settimana)
 
@@ -99,17 +100,18 @@ class Model:
         Restituisce i prezzi dei primi 7 giorni del mese selezionato per ciascun distributore.
         :return: un dizionario: {id_distributore: [prezzo_giorno1, ..., prezzo_giorno7]}
         """
+        dict_prezzi = {}
         for distributore in self._distributori:
             lista_prezzi = PrezzoDAO.get_prezzi(distributore.id)
             for giorno in lista_prezzi:
                 if giorno.data.month == mese:
-                    if distributore.id not in self.dict_prezzi:
-                        self.dict_prezzi[distributore.id] = [giorno.prezzo_litro]
+                    if distributore.id not in dict_prezzi:
+                        dict_prezzi[distributore.id] = [giorno.prezzo_litro]
                     else:
-                        self.dict_prezzi[distributore.id].append(giorno.prezzo_litro)
+                        dict_prezzi[distributore.id].append(giorno.prezzo_litro)
 
         dict_settimana = {}
-        for distributore in self.dict_prezzi:
-            dict_settimana[distributore] = self.dict_prezzi[distributore][0:7]
+        for distributore in dict_prezzi:
+            dict_settimana[distributore] = dict_prezzi[distributore][0:7]
 
         return dict_settimana
